@@ -17,7 +17,9 @@ h4 = net.addHost( 'regular4', mac = '00:00:00:00:00:04', ip='10.0.0.4' )
 h5 = net.addHost( 'regular5', mac = '00:00:00:00:00:05', ip='10.0.0.5' )
 s1 = net.addSwitch( 'edge1', cls=OVSKernelSwitch, protocols='OpenFlow13' )
 s2 = net.addSwitch( 'core2', cls=OVSHtbQosSwitch, protocols='OpenFlow13' )
+#s2 = net.addSwitch( 'core2', cls=OVSKernelSwitch, protocols='OpenFlow13' )
 s3 = net.addSwitch( 'edge3', cls=OVSKernelSwitch, protocols='OpenFlow13' )
+
 net.addLink( h1, s1, cls=Link)
 net.addLink( h2, s1, cls=Link)
 net.addLink( s1, s2, cls=Link)
@@ -28,21 +30,14 @@ net.addLink( s3, h3, cls=TCLink, bw=10)
 net.addLink( s3, h4, cls=TCLink, bw=10)
 net.addLink( s3, h5, cls=TCLink, bw=10)
 
-#c0 = net.addController( 'c0', RemoteController, protocols='OpenFlow13', port=6633)
-c0 = net.addController('c0', OVSController, protocols='OpenFlow13')
+c0 = net.addController( 'c0', RemoteController, protocols='OpenFlow13', port=6633)
+#c0 = net.addController('c0', OVSController, protocols='OpenFlow13')
 
 net.start()
 ## Configure Priority queues in core router
 s2.cmd('ovs-vsctl -- set port core2-eth2 qos=@newqos -- --id=@newqos create qos type=linux-htb queues=0=@q0,1=@q1 -- \
 --id=@q0 create queue other-config:min-rate=2000 other-config:max-rate=10000000 -- \
 --id=@q1 create queue other-config:min-rate=1000000 other-config:max-rate=10000000')
-
-## Set premium user flows in priority queue
-add_premium_flow_qos = 'ovs-ofctl -OOpenFlow13 add-flow core2 \
-priority=10,table=0,ip,ip_src={0},ip_dst={1},\
-actions=set_queue:1,output:2'.format(h1.IP(),h3.IP())
-print add_premium_flow_qos
-s2.cmd(add_premium_flow_qos)
 
 xterms = []
 [tunnel, term] = runX11( h3, 'vlc-wrapper --rtp-caching=1 rtp://@:5004  --meta-title="premium user:receiving video"')
